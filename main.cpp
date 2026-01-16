@@ -27,6 +27,18 @@ public:
     Vector2 operator*(float scalar) const { return Vector2(x * scalar, y * scalar); }
 };
 
+class Entity {
+public:
+    Vector2 position;
+    Vector2 velocity;
+    bool active = false;
+    Game* game = nullptr;
+    Entity(Game* g = nullptr) : game(g) {}
+    virtual ~Entity() = default;
+    virtual void update() {}
+    virtual void render(SDL_Renderer* renderer) const {}
+}
+
 class Game {
 public:
     SDL_Window* window = nullptr;
