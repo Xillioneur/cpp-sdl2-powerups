@@ -11,6 +11,8 @@
 #define WINDOW_W 1200
 #define WINDOW_H 675
 
+#define MAX_PROJECTILES 50
+
 #define SHIP_ROT_SPEED 0.10f
 #define SHIP_THRUST 0.12f
 #define FUEL_CONSUMPTION 0.085f
@@ -25,6 +27,10 @@
 #define OVERHEAT_DAMAGE_PER_SEC 1.6f
 #define OVERHEAT_THRUST_PENALTY 0.30f
 #define OVERHEAT_DRAG_MULTIPLIER 0.94f
+
+#define PROJECTILE_SPEED 8.0f
+#define PROJECTILE_LIFE 120
+#define SHOOT_COOLDOWN 10
 
 class Game;
 
@@ -77,6 +83,7 @@ public:
     float heat = 0.0f;
     float thrusting = false;
     float overheat_damage_accumulator = 0.0f;
+    int shoot_timer = 0;
 
     Ship(Game* g) : Entity (g) {
         position = Vector2(WINDOW_W / 2.0f, WINDOW_H / 2.0f);
@@ -89,15 +96,31 @@ public:
     bool is_overheat_warning() const { return heat >= OVERHEAT_MAX * OVERHEAT_WARNING_THRESHOLD; }
 };
 
+class Projectile : public Entity {
+public: 
+    float life = PROJECTILE_LIFE;
+    Uint32 color = 0xFFAA00FF;
+
+    Projectile(Game* g = nullptr) : Entity(g) {}
+    void update();
+    void render(SDL_Renderer* renderer) const;
+};
+
 class Game {
 public:
     Ship ship;
+    std::vector<Projectile> projectiles;
+
+
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
 
     int frame = 0;
 
-    Game() : ship(this) {}
+    Game() : ship(this) {
+        projectiles.reserve(MAX_PROJECTILES);
+    }
+
     void init();
     void update();
     void render();
@@ -109,11 +132,26 @@ void Game::wrap(Vector2& pos) {
     pos.y = std::fmod(pos.y + WINDOW_H * 10, WINDOW_H);
 }
 
+void Projectile::update() {
+    position = position + velocity;
+    life -= 1.0f;
+}
+
+void Projectile::render(SDL_Renderer* renderer) const {
+    SDL_SetRenderDrawColor(renderer, (color>>16)&255, (color>>8)&255, color&255, 255);
+    int px = static_cast<int>(position.x), py = static_cast<int>(position.y);
+    for (int i = -2; i <= 2; i++) {
+        SDL_RenderDrawPoint(renderer, px + i, py);
+        SDL_RenderDrawPoint(renderer, px, py + i);
+    }
+}
+
 void Ship::update(const Uint8* keys) {
     thrusting = false;
     int left = keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT];
     int right = keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT];
     int thrust = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
+    int shoot = keys[SDL_SCANCODE_J];
 
     if (left) angle -= SHIP_ROT_SPEED;
     if (right) angle += SHIP_ROT_SPEED;
@@ -127,6 +165,15 @@ void Ship::update(const Uint8* keys) {
         heat += HEAT_GAIN_PER_THRUST;
         thrusting = true;
     }
+
+    if (shoot && shoot_timer <= 0) {
+        Projectile p(game);
+        p.position = position + Vector2(std::cos(angle) * 30, std::sin(angle) * 30);
+        p.velocity = Vector2(std::cos(angle), std::sin(angle)) * PROJECTILE_SPEED + velocity * 0.5f;
+        game->projectiles.push_back(p);
+        shoot_timer = SHOOT_COOLDOWN;
+    }
+    shoot_timer--;
 
     float decay = is_critical_overheat() ? HEAT_DECAY_CRITICAL : HEAT_DECAY_NORMAL;
     heat = std::fmax(0.0f, heat - decay);
@@ -185,6 +232,7 @@ void Ship::render(SDL_Renderer* renderer) const {
 
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
+    projectiles.clear();
     frame = 0;
     ship = Ship(this);
 }
@@ -193,6 +241,7 @@ void Game::render() {
     SDL_SetRenderDrawColor(renderer, 3, 3, 12, 255);
     SDL_RenderClear(renderer);
 
+    for (const auto& proj : projectiles) proj.render(renderer);
     ship.render(renderer);
 
     SDL_RenderPresent(renderer);
@@ -204,6 +253,16 @@ void Game::update() {
     ship.update(keys);
     wrap(ship.position);
     // TODO: Code thrust_fame()
+
+    for (auto it = projectiles.begin(); it != projectiles.end(); ) {
+        it->update();
+        if (it->life <= 0) {
+            it = projectiles.erase(it);
+            continue;
+        }
+        ++it;
+        // TODO: Hit detection with creatures
+    }
 }
 
 
