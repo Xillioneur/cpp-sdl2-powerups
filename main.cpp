@@ -14,6 +14,17 @@
 #define SHIP_ROT_SPEED 0.10f
 #define SHIP_THRUST 0.12f
 #define FUEL_CONSUMPTION 0.085f
+#define OVERHEAT_MAX 300.0f
+
+// Overheat tuning
+#define HEAT_GAIN_PER_THRUST 1.1f
+#define HEAT_DECAY_NORMAL 0.7f
+#define HEAT_DECAY_CRITICAL 0.35f
+#define OVERHEAT_WARNING_THRESHOLD 0.80f
+#define OVERHEAT_CRITICAL_THRESHOLD 1.00f
+#define OVERHEAT_DAMAGE_PER_SEC 1.6f
+#define OVERHEAT_THRUST_PENALTY 0.30f
+#define OVERHEAT_DRAG_MULTIPLIER 0.94f
 
 class Game;
 
@@ -63,7 +74,9 @@ class Ship : public Entity {
 public:
     float angle = 0.0f;
     float fuel = 1000.0f;
+    float heat = 0.0f;
     float thrusting = false;
+    float overheat_damage_accumulator = 0.0f;
 
     Ship(Game* g) : Entity (g) {
         position = Vector2(WINDOW_W / 2.0f, WINDOW_H / 2.0f);
@@ -72,7 +85,29 @@ public:
 
     void update(const Uint8* keys);
     void render(SDL_Renderer* renderer) const;
+    bool is_critical_overheat() const { return heat >= OVERHEAT_MAX * OVERHEAT_CRITICAL_THRESHOLD; }
+    bool is_overheat_warning() const { return heat >= OVERHEAT_MAX * OVERHEAT_WARNING_THRESHOLD; }
 };
+
+class Game {
+public:
+    Ship ship;
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+
+    int frame = 0;
+
+    Game() : ship(this) {}
+    void init();
+    void update();
+    void render();
+    void wrap(Vector2& pos);
+};
+
+void Game::wrap(Vector2& pos) {
+    pos.x = std::fmod(pos.x + WINDOW_W * 10, WINDOW_W);
+    pos.y = std::fmod(pos.y + WINDOW_H * 10, WINDOW_H);
+}
 
 void Ship::update(const Uint8* keys) {
     thrusting = false;
@@ -83,22 +118,50 @@ void Ship::update(const Uint8* keys) {
     if (left) angle -= SHIP_ROT_SPEED;
     if (right) angle += SHIP_ROT_SPEED;
 
+    float effective_thrust = SHIP_THRUST;
+    if (is_critical_overheat()) effective_thrust *= OVERHEAT_THRUST_PENALTY;
+
     if (thrust && fuel > 5.0f) {
         velocity = velocity + Vector2(std::cos(angle), std::sin(angle)) * SHIP_THRUST;
         fuel -= FUEL_CONSUMPTION;
+        heat += HEAT_GAIN_PER_THRUST;
         thrusting = true;
     }
 
+    float decay = is_critical_overheat() ? HEAT_DECAY_CRITICAL : HEAT_DECAY_NORMAL;
+    heat = std::fmax(0.0f, heat - decay);
+
     position = position + velocity;
 
+    if (is_critical_overheat()) {
+        velocity = velocity * OVERHEAT_DRAG_MULTIPLIER;
+    } else {
+        velocity = velocity * 0.985f;
+    }
     fuel = std::fmin(1000.0f, fuel + 0.35f);
 }
 
 void Ship::render(SDL_Renderer* renderer) const {
+    float heat_ratio = heat / OVERHEAT_MAX;
+    float heat_glow = std::fmin(heat_ratio, 1.3f);
+
     Uint8 r = 255;
-    Uint8 g = 255;
-    Uint8 b = 255;
-    Uint8 alpha = 255;
+    Uint8 g = static_cast<Uint8>(255 - heat_glow * 160);
+    Uint8 b = static_cast<Uint8>(120 + heat_glow * 40);
+    Uint8 alpha = 220 + static_cast<Uint8>(35 * std::sin(game->frame * 0.25f));
+    
+    if (is_critical_overheat()) {
+        if ((game->frame / 5) % 2 == 0) {
+            r = 255; g = 50; b = 30;
+            alpha = 255;
+        } else {
+            r = 230; g = 90; b = 50;
+            alpha = 200;
+        }
+    } else if (is_overheat_warning()) {
+        g = static_cast<Uint8>(g * 0.5f + 100);
+        b = static_cast<Uint8>(b * 0.3f + 30);
+    }
 
     SDL_SetRenderDrawColor(renderer, r, g, b, alpha);
 
@@ -113,26 +176,10 @@ void Ship::render(SDL_Renderer* renderer) const {
     thick_line(renderer, static_cast<int>(right.x), static_cast<int>(right.y), static_cast<int>(nose.x), static_cast<int>(nose.y), 7);
 }
 
-class Game {
-public:
-    Ship ship;
-    SDL_Window* window = nullptr;
-    SDL_Renderer* renderer = nullptr;
-
-    Game() : ship(this) {}
-    void init();
-    void update();
-    void render();
-    void wrap(Vector2& pos);
-};
-
-void Game::wrap(Vector2& pos) {
-    pos.x = std::fmod(pos.x + WINDOW_W * 10, WINDOW_W);
-    pos.y = std::fmod(pos.y + WINDOW_H * 10, WINDOW_H);
-}
 
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
+    frame = 0;
     ship = Ship(this);
 }
 
@@ -147,6 +194,7 @@ void Game::render() {
 
 void Game::update() {
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    frame++;
     ship.update(keys);
     wrap(ship.position);
     // TODO: Code thrust_fame()
