@@ -13,6 +13,7 @@
 
 #define SHIP_ROT_SPEED 0.10f
 #define SHIP_THRUST 0.12f
+#define FUEL_CONSUMPTION 0.085f
 
 class Game;
 
@@ -61,6 +62,7 @@ public:
 class Ship : public Entity {
 public:
     float angle = 0.0f;
+    float fuel = 1000.0f;
     float thrusting = false;
 
     Ship(Game* g) : Entity (g) {
@@ -81,12 +83,15 @@ void Ship::update(const Uint8* keys) {
     if (left) angle -= SHIP_ROT_SPEED;
     if (right) angle += SHIP_ROT_SPEED;
 
-    if (thrust) {
+    if (thrust && fuel > 5.0f) {
         velocity = velocity + Vector2(std::cos(angle), std::sin(angle)) * SHIP_THRUST;
+        fuel -= FUEL_CONSUMPTION;
         thrusting = true;
     }
 
     position = position + velocity;
+
+    fuel = std::fmin(1000.0f, fuel + 0.35f);
 }
 
 void Ship::render(SDL_Renderer* renderer) const {
