@@ -37,7 +37,21 @@ public:
     virtual ~Entity() = default;
     virtual void update() {}
     virtual void render(SDL_Renderer* renderer) const {}
-}
+};
+
+class Ship : public Entity {
+public:
+    float angle = 0.0f;
+    float fuel = 1000.0f;
+
+    Ship(Game* g) : Entity (g) {
+        position = Vector2(WINDOW_W / 2.0f, WINDOW_H / 2.0f);
+        angle = -M_PI / 2;
+    }
+
+    void update(const Uint8* keys, float danger_level);
+    void render(SDL_Renderer* renderer) const;
+};
 
 class Game {
 public:
