@@ -118,8 +118,13 @@ public:
     void init();
     void update();
     void render();
+    void wrap(Vector2& pos);
 };
 
+void Game::wrap(Vector2& pos) {
+    pos.x = std::fmod(pos.x + WINDOW_W * 10, WINDOW_W);
+    pos.y = std::fmod(pos.y + WINDOW_H * 10, WINDOW_H);
+}
 
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
@@ -138,6 +143,7 @@ void Game::render() {
 void Game::update() {
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
     ship.update(keys);
+    wrap(ship.position);
     // TODO: Code thrust_fame()
 }
 
