@@ -13,11 +13,31 @@
 
 class Game;
 
+class Vector2 {
+public:
+    float x, y;
+    Vector2(float px = 0, float py = 0) : x(px), y(py) {}
+    float magnitude() const { return std::hypot(x, y); }
+    Vector2 normalize() const {
+        float mag = magnitude();
+        return mag > 0 ? Vector2(x / mag, y / mag) : Vector2();
+    }
+    Vector2 operator+(const Vector2& other) const { return Vector2(x + other.x, y + other.y); }
+    Vector2 operator-(const Vector2& other) const { return Vector2(x - other.x, y - other.y); }
+    Vector2 operator*(float scalar) const { return Vector2(x * scalar, y * scalar); }
+};
+
 class Game {
 public:
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
+
+    void init();
 };
+
+void Game::init() {
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+}
 
 int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
