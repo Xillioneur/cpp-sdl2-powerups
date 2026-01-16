@@ -174,6 +174,12 @@ void Ship::render(SDL_Renderer* renderer) const {
     thick_line(renderer, static_cast<int>(left.x), static_cast<int>(left.y), static_cast<int>(core.x), static_cast<int>(core.y), 7);
     thick_line(renderer, static_cast<int>(core.x), static_cast<int>(core.y), static_cast<int>(right.x), static_cast<int>(right.y), 7);
     thick_line(renderer, static_cast<int>(right.x), static_cast<int>(right.y), static_cast<int>(nose.x), static_cast<int>(nose.y), 7);
+
+    SDL_SetRenderDrawColor(renderer, 255, 240 - static_cast<int>(heat_glow * 120), 180, 200);
+    for (int rad = 0; rad < 12; rad++) {
+        SDL_RenderDrawLine(renderer, static_cast<int>(position.x - rad), static_cast<int>(position.y), static_cast<int>(position.x + rad), static_cast<int>(position.y));
+        SDL_RenderDrawLine(renderer, static_cast<int>(position.x), static_cast<int>(position.y - rad), static_cast<int>(position.x), static_cast<int>(position.y + rad));
+    }
 }
 
 
