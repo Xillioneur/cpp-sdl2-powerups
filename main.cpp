@@ -11,6 +11,9 @@
 #define WINDOW_W 1200
 #define WINDOW_H 675
 
+#define SHIP_ROT_SPEED 0.10f
+#define SHIP_THRUST 0.12f
+
 class Game;
 
 class Vector2 {
@@ -58,25 +61,33 @@ public:
 class Ship : public Entity {
 public:
     float angle = 0.0f;
+    float thrusting = false;
 
     Ship(Game* g) : Entity (g) {
         position = Vector2(WINDOW_W / 2.0f, WINDOW_H / 2.0f);
         angle = -M_PI / 2;
     }
 
+    void update(const Uint8* keys);
     void render(SDL_Renderer* renderer) const;
 };
 
-class Game {
-public:
-    Ship ship;
-    SDL_Window* window = nullptr;
-    SDL_Renderer* renderer = nullptr;
+void Ship::update(const Uint8* keys) {
+    thrusting = false;
+    int left = keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT];
+    int right = keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT];
+    int thrust = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
 
-    Game() : ship(this) {}
-    void init();
-    void render();
-};
+    if (left) angle -= SHIP_ROT_SPEED;
+    if (right) angle += SHIP_ROT_SPEED;
+
+    if (thrust) {
+        velocity = velocity + Vector2(std::cos(angle), std::sin(angle)) * SHIP_THRUST;
+        thrusting = true;
+    }
+
+    position = position + velocity;
+}
 
 void Ship::render(SDL_Renderer* renderer) const {
     Uint8 r = 255;
@@ -97,6 +108,19 @@ void Ship::render(SDL_Renderer* renderer) const {
     thick_line(renderer, static_cast<int>(right.x), static_cast<int>(right.y), static_cast<int>(nose.x), static_cast<int>(nose.y), 7);
 }
 
+class Game {
+public:
+    Ship ship;
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+
+    Game() : ship(this) {}
+    void init();
+    void update();
+    void render();
+};
+
+
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     ship = Ship(this);
@@ -109,6 +133,12 @@ void Game::render() {
     ship.render(renderer);
 
     SDL_RenderPresent(renderer);
+}
+
+void Game::update() {
+    const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    ship.update(keys);
+    // TODO: Code thrust_fame()
 }
 
 
@@ -129,6 +159,7 @@ int main(int argc, char* argv[]) {
             if (ev.type == SDL_QUIT) running = false;
         }
 
+        game.update();
         game.render();
         SDL_Delay(16);
     }
