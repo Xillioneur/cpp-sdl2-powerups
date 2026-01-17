@@ -11,6 +11,7 @@
 #define WINDOW_W 1200
 #define WINDOW_H 675
 
+#define MAX_CREATURES 38
 #define MAX_PROJECTILES 50
 
 #define SHIP_ROT_SPEED 0.10f
@@ -96,6 +97,24 @@ public:
     bool is_overheat_warning() const { return heat >= OVERHEAT_MAX * OVERHEAT_WARNING_THRESHOLD; }
 };
 
+class NebulaCreature : public Entity {
+public:
+    float angle;
+    float wiggle;
+    float size;
+    float hunt_phase;
+    float patrol_phase;
+    Vector2 target;
+    int type;
+    Uint32 color;
+    int health = 1;
+
+    NebulaCreature(Game* g) : Entity(g) {}
+    void spawn(Game* g, const Ship& ship);
+    void update(const Ship& ship);
+    void render(SDL_Renderer* renderer) const;
+};
+
 class Projectile : public Entity {
 public: 
     float life = PROJECTILE_LIFE;
@@ -109,6 +128,7 @@ public:
 class Game {
 public:
     Ship ship;
+    std::vector<NebulaCreature> creatures;
     std::vector<Projectile> projectiles;
 
 
@@ -118,6 +138,7 @@ public:
     int frame = 0;
 
     Game() : ship(this) {
+        creatures.reserve(MAX_CREATURES);
         projectiles.reserve(MAX_PROJECTILES);
     }
 
