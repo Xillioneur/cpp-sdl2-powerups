@@ -49,6 +49,14 @@ public:
     Vector2 operator*(float scalar) const { return Vector2(x * scalar, y * scalar); }
 };
 
+float distance(const Vector2& a, const Vector2& b) {
+    float dx = a.x - b.x;
+    float dy = a.y - b.y;
+    if (std::fabs(dx) > WINDOW_W / 2) dx -= (dx > 0 ? WINDOW_W : -WINDOW_W);
+    if (std::fabs(dy) > WINDOW_H / 2) dy -= (dy > 0 ? WINDOW_H : -WINDOW_H);
+    return std::hypot(dx, dy);
+}
+
 void thick_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness) {
     if (thickness <= 1) {
         SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
@@ -152,6 +160,43 @@ void Game::wrap(Vector2& pos) {
     pos.x = std::fmod(pos.x + WINDOW_W * 10, WINDOW_W);
     pos.y = std::fmod(pos.y + WINDOW_H * 10, WINDOW_H);
 }
+
+void NebulaCreature::spawn(Game* g, const Ship& ship) {
+    game = g;
+    active = true;
+    size = 16 + rand() % 26;
+    hunt_phase = 0;
+    wiggle = rand() * 2 * M_PI / RAND_MAX;
+    patrol_phase = rand() * 2 * M_PI / RAND_MAX;
+
+    type = rand() % 3;
+    health = type + 1;
+
+    int tries = 0;
+    do {
+        float side = rand() % 4;
+        if (side == 0) { position.x = -100; position.y = rand() % WINDOW_H; }
+        else if (side == 1) { position.x = WINDOW_W + 100; position.y = rand() % WINDOW_H; }
+        else if (side == 2) { position.y = -100; position.x = rand() % WINDOW_W; }
+        else { position.y = WINDOW_H + 100; position.x = rand() % WINDOW_W; }
+    } while (distance(position, ship.position) < 300 && ++tries < 80);
+
+    float dir_to_ship = std::atan2(ship.position.y - position.y, ship.position.x - position.x);
+    float offset = (rand() % 100 - 50) / 100.0f * M_PI / 2;
+    float target_dir = dir_to_ship + offset;
+    float target_dist = 300 + rand() % 400;
+    target = position + Vector2(std::cos(target_dir), std::sin(target_dir)) * target_dist;
+
+    float dir = rand() * 2 * M_PI / RAND_MAX;
+    float base_speed = (type == 0) ? 0.8f : (type == 1) ? 1.4f : 1.0f;
+    velocity = Vector2(std::cos(dir) * base_speed, std::sin(dir) * base_speed);
+    angle = dir;
+
+    if (type == 0) color = 0x88BBFFFF | ((170 + rand() % 50) << 24);
+    else if (type == 1) color = 0xFF8888FF | ((140 + rand() % 60) << 24);
+    else color = 0xCC88FFFF | ((130 + rand() % 70) << 24);
+}
+
 
 void Projectile::update() {
     position = position + velocity;
