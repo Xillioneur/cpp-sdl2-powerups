@@ -311,6 +311,28 @@ void NebulaCreature::render(SDL_Renderer* renderer) const {
         SDL_RenderDrawLine(renderer, static_cast<int>(position.x - w), static_cast<int>(position.y + dy), static_cast<int>(position.x + w), static_cast<int>(position.y + dy));
     }
     
+    if (type == 0) {
+        SDL_SetRenderDrawColor(renderer, 200, 220, 255, 180);
+        for (int i = 0; i < 5; i++) {
+            float ang = angle + i * M_PI / 2.5f + std::sin(wiggle + i) * 0.3f;
+            Vector2 end = position + Vector2(std::cos(ang), std::sin(ang)) * (sz + 10);
+            thick_line(renderer, static_cast<int>(position.x), static_cast<int>(position.y), static_cast<int>(end.x), static_cast<int>(end.y), 2);
+        }
+    } else if (type == 1) {
+        SDL_SetRenderDrawColor(renderer, 255, 120, 120, 220);
+        for (int i = 0; i < 6; i++) {
+            float ang = angle + i * M_PI / 3 + std::sin(wiggle + i) * 0.4f;
+            Vector2 end = position + Vector2(std::cos(ang), std::sin(ang)) * (sz + 16);
+            thick_line(renderer, static_cast<int>(position.x), static_cast<int>(position.y), static_cast<int>(end.x), static_cast<int>(end.y), 4);
+        }
+    } else {
+        SDL_SetRenderDrawColor(renderer, 180, 100, 220, 200);
+        for (int i = 0; i < 8; i++) {
+            float ang = angle + i * M_PI / 4 + std::sin(wiggle * 0.8f + i) * 0.6f;
+            Vector2 end = position + Vector2(std::cos(ang), std::sin(ang)) * (sz + 18);
+            thick_line(renderer, static_cast<int>(position.x), static_cast<int>(position.y), static_cast<int>(end.x), static_cast<int>(end.y), 3);
+        }
+    }
 }
 
 void Game::init() {
