@@ -16,6 +16,7 @@
 
 #define SHIP_ROT_SPEED 0.10f
 #define SHIP_THRUST 0.12f
+#define CREATURE_DANGER_DIST 140.0f
 #define FUEL_CONSUMPTION 0.085f
 #define OVERHEAT_MAX 300.0f
 
@@ -332,6 +333,14 @@ void NebulaCreature::render(SDL_Renderer* renderer) const {
             Vector2 end = position + Vector2(std::cos(ang), std::sin(ang)) * (sz + 18);
             thick_line(renderer, static_cast<int>(position.x), static_cast<int>(position.y), static_cast<int>(end.x), static_cast<int>(end.y), 3);
         }
+    }
+
+    float dist_to_ship = distance(position, game->ship.position);
+    if (dist_to_ship < CREATURE_DANGER_DIST) {
+        Uint8 glow = static_cast<Uint8>(255 * (1.0f - dist_to_ship / CREATURE_DANGER_DIST));
+        SDL_SetRenderDrawColor(renderer, 255, 80, 80, glow);
+        for (int r = 0; r < 20; r += 4) {
+            SDL_RenderDrawLine(renderer, static_cast<int>(position.x - r), static_cast<int>(position.y), static_cast<int>(position.x + r), static_cast<int>(position.y));        }
     }
 }
 
