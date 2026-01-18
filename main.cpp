@@ -256,6 +256,47 @@ void Ship::update(const Uint8* keys) {
 }
 
 void NebulaCreature::update(const Ship& ship) {
+    hunt_phase += 0.04f;
+    wiggle += 0.09f;
+    patrol_phase += 0.025f;
+
+    float dist_to_ship = distance(position, ship.position);
+
+    if (game->frame % 200 == 0) {
+        if (dist_to_ship > 600.0f) {
+            float dir_to_ship = std::atan2(ship.position.y - position.y, ship.position.x - position.x);
+            float offset = (rand() % 100 - 50) / 100.0f * M_PI / 2;
+            float target_dir = dir_to_ship + offset;
+            float target_dist = 300 + rand() % 400;
+            target = position + Vector2(std::cos(target_dir), std::sin(target_dir)) * target_dist;
+        } else {
+            float random_dir = static_cast<float>(rand()) * 2 * M_PI / RAND_MAX;
+            float target_dist = 200 + rand() % 300;
+            target = position + Vector2(std::cos(random_dir), std::sin(random_dir)) * target_dist;
+        }
+    }
+
+    Vector2 delta = ship.position - position;
+    if (std::fabs(delta.x) > WINDOW_W / 2) delta.x -= (delta.x > 0 ? WINDOW_W : -WINDOW_W);
+    if (std::fabs(delta.y) > WINDOW_H / 2) delta.y -= (delta.y > 0 ? WINDOW_H : -WINDOW_H);
+    float dir = std::atan2(delta.y, delta.x);
+
+    if (type == 0) {
+        float accel = (dist_to_ship < 420) ? 0.028f : 0.03f;
+        velocity = velocity + Vector2(std::cos(dir), std::sin(dir)) * accel;
+    } else if (type == 1) {
+        float accel = (dist_to_ship < 500) ? 0.045f : 0.035f;
+        velocity = velocity + Vector2(std::cos(dir), std::sin(dir)) * accel + Vector2(std::sin(wiggle), std::cos(wiggle)) * (dist_to_ship < 500 ? 0.06f : 0.03f);
+    } else {
+        if (dist_to_ship < 380) {
+            float offset = (dist_to_ship < 180) ? -M_PI/2 : M_PI/2;
+            dir += offset + std::sin(wiggle)*0.3f;
+            velocity = velocity + Vector2(std::cos(dir), std::sin(dir)) * 0.036f;
+        } else {
+            velocity = velocity + Vector2(std::cos(dir), std::sin(dir)) * 0.03f;
+        }
+    }
+    
     angle = std::atan2(velocity.y, velocity.x);
     position = position + velocity;
     velocity = velocity * 0.975f;
