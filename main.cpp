@@ -254,6 +254,12 @@ void Ship::update(const Uint8* keys) {
     fuel = std::fmin(1000.0f, fuel + 0.35f);
 }
 
+void NebulaCreature::update(const Ship& ship) {
+    angle = std::atan2(velocity.y, velocity.x);
+    position = position + velocity;
+    velocity = velocity * 0.975f;
+}
+
 void Ship::render(SDL_Renderer* renderer) const {
     float heat_ratio = heat / OVERHEAT_MAX;
     float heat_glow = std::fmin(heat_ratio, 1.3f);
@@ -295,17 +301,37 @@ void Ship::render(SDL_Renderer* renderer) const {
     }
 }
 
+void NebulaCreature::render(SDL_Renderer* renderer) const {
+    float pulse = 0.85f + 0.15f * std::sin(game->frame * 0.18f + hunt_phase);
+    int sz = static_cast<int>(size * pulse);
+
+    SDL_SetRenderDrawColor(renderer, (color>>16)&255, (color>>8)&255, color&255, (color>>24)&255);
+    for (int dy = -sz; dy <= sz; dy += 3) {
+        int w = static_cast<int>(std::sqrt(sz*sz - dy*dy));
+        SDL_RenderDrawLine(renderer, static_cast<int>(position.x - w), static_cast<int>(position.y + dy), static_cast<int>(position.x + w), static_cast<int>(position.y + dy));
+    }
+    
+}
 
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
+    ship = Ship(this);
+    creatures.clear();
     projectiles.clear();
     frame = 0;
-    ship = Ship(this);
+
+    for (int i = 0; i < 8; i++) {
+        NebulaCreature n(this);
+        n.spawn(this, ship);
+        creatures.push_back(n);
+    }
 }
 
 void Game::render() {
     SDL_SetRenderDrawColor(renderer, 3, 3, 12, 255);
     SDL_RenderClear(renderer);
+
+    for (const auto& cr : creatures) if (cr.active) cr.render(renderer);   
 
     for (const auto& proj : projectiles) proj.render(renderer);
     ship.render(renderer);
@@ -319,6 +345,16 @@ void Game::update() {
     ship.update(keys);
     wrap(ship.position);
     // TODO: Code thrust_fame()
+
+    for (auto it = creatures.begin(); it != creatures.end(); ) {
+        if (!it->active) {
+            it = creatures.erase(it);
+            continue;
+        }
+        it->update(ship);
+        wrap(it->position);
+        ++it;
+    }
 
     for (auto it = projectiles.begin(); it != projectiles.end(); ) {
         it->update();
