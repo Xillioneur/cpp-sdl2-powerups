@@ -11,6 +11,7 @@
 #define WINDOW_W 1200
 #define WINDOW_H 675
 
+#define MAX_CLOUDS 120
 #define MAX_CREATURES 38
 #define MAX_PROJECTILES 50
 
@@ -107,6 +108,18 @@ public:
     bool is_overheat_warning() const { return heat >= OVERHEAT_MAX * OVERHEAT_WARNING_THRESHOLD; }
 };
 
+class GasCloud : public Entity {
+public:
+    float size;
+    float density;
+    float phase;
+    float pull_strength;
+    int value;
+    Uint32 color;
+
+    GasCloud (Game* g) : Entity(g) {}
+};
+
 class NebulaCreature : public Entity {
 public:
     float angle;
@@ -138,6 +151,7 @@ public:
 class Game {
 public:
     Ship ship;
+    std::vector<GasCloud> clouds;
     std::vector<NebulaCreature> creatures;
     std::vector<Projectile> projectiles;
 
@@ -148,6 +162,7 @@ public:
     int frame = 0;
 
     Game() : ship(this) {
+        clouds.reserve(MAX_CLOUDS);
         creatures.reserve(MAX_CREATURES);
         projectiles.reserve(MAX_PROJECTILES);
     }
@@ -389,9 +404,16 @@ void NebulaCreature::render(SDL_Renderer* renderer) const {
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     ship = Ship(this);
+    clouds.clear();
     creatures.clear();
     projectiles.clear();
     frame = 0;
+
+    for (int i = 0; i < 35; i++) {
+        GasCloud c(this);
+        // TODO: Add spawning
+        clouds.push_back(c);
+    }
 
     for (int i = 0; i < 8; i++) {
         NebulaCreature n(this);
@@ -441,6 +463,8 @@ void Game::update() {
         }
         ++it;
     }
+
+    // TODO: Spawn more creatures
 
     for (auto it = projectiles.begin(); it != projectiles.end(); ) {
         it->update();
