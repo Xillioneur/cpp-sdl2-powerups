@@ -91,6 +91,7 @@ public:
     float angle = 0.0f;
     float fuel = 1000.0f;
     float heat = 0.0f;
+    int lives = 3;
     float thrusting = false;
     float overheat_damage_accumulator = 0.0f;
     int shoot_timer = 0;
@@ -425,6 +426,19 @@ void Game::update() {
         }
         it->update(ship);
         wrap(it->position);
+        if (distance(it->position, ship.position) < it->size + 28) {
+            ship.lives--;
+            ship.fuel *= 0.4f;
+            ship.heat = OVERHEAT_MAX * 0.92f;
+            // TODO: Danger trail
+            it = creatures.erase(it);
+            // TODO: Combo
+            if (ship.lives <= 0) {
+                std::cout << "Game Over!" << std::endl; // TOOD: Score
+                init();
+            }
+            continue;
+        }
         ++it;
     }
 
