@@ -17,6 +17,7 @@
 
 #define SHIP_ROT_SPEED 0.10f
 #define SHIP_THRUST 0.12f
+#define HARVEST_RANGE 65.0f
 #define CREATURE_DANGER_DIST 140.0f
 #define FUEL_CONSUMPTION 0.085f
 #define OVERHEAT_MAX 300.0f
@@ -119,6 +120,7 @@ public:
 
     GasCloud (Game* g) : Entity(g) {}
     void spawn(Game* g);
+    void update(const Ship& ship);
     void render(SDL_Renderer* renderer) const;
 };
 
@@ -307,6 +309,12 @@ void Ship::update(const Uint8* keys) {
         velocity = velocity * 0.985f;
     }
     fuel = std::fmin(1000.0f, fuel + 0.35f);
+}
+
+void GasCloud::update(const Ship& ship) {
+    position = position + velocity;
+    phase += 0.08f;
+    velocity = velocity * 0.97f;
 }
 
 void NebulaCreature::update(const Ship& ship) {
@@ -503,6 +511,22 @@ void Game::update() {
     ship.update(keys);
     wrap(ship.position);
     // TODO: Code thrust_fame()
+
+    for (auto it = clouds.begin(); it != clouds.end();) { 
+        if (!it->active) {
+            it = clouds.erase(it);
+            continue;
+        }
+        it->update(ship);
+        wrap(it->position);
+        if (distance(it->position, ship.position) < HARVEST_RANGE) {
+            // TODO: Points
+            // TODO: Harvest effect
+            it = clouds.erase(it);
+            continue;
+        }
+        ++it;
+    }
 
     for (auto it = creatures.begin(); it != creatures.end(); ) {
         if (!it->active) {
