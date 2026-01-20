@@ -407,6 +407,18 @@ void GasCloud::render(SDL_Renderer* renderer) const {
         if (w > 0)
             SDL_RenderDrawLine(renderer, static_cast<int>(position.x - w), static_cast<int>(position.y + dy), static_cast<int>(position.x + w), static_cast<int>(position.y + dy));
     }
+
+    SDL_SetRenderDrawColor(renderer, (color>>16)&255, (color>>8)&255, color&255, 255);
+    for (int dy = -rad; dy <= rad; dy += 3) {
+        int w = static_cast<int>(std::sqrt(rad*rad - dy*dy) * density * 0.9f);
+        SDL_RenderDrawLine(renderer, static_cast<int>(position.x - w), static_cast<int>(position.y + dy), static_cast<int>(position.x + w), static_cast<int>(position.y + dy));
+    }
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 220);
+    for (int r = 0; r < 8; r++) {
+        SDL_RenderDrawLine(renderer, static_cast<int>(position.x - r), static_cast<int>(position.y), static_cast<int>(position.x + r), static_cast<int>(position.y));
+        SDL_RenderDrawLine(renderer, static_cast<int>(position.x), static_cast<int>(position.y - r), static_cast<int>(position.x), static_cast<int>(position.y + r));
+    }
 }
 
 void NebulaCreature::render(SDL_Renderer* renderer) const {
