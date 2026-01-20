@@ -118,6 +118,8 @@ public:
     Uint32 color;
 
     GasCloud (Game* g) : Entity(g) {}
+    void spawn(Game* g);
+    void render(SDL_Renderer* renderer) const;
 };
 
 class NebulaCreature : public Entity {
@@ -177,6 +179,42 @@ void Game::wrap(Vector2& pos) {
     pos.x = std::fmod(pos.x + WINDOW_W * 10, WINDOW_W);
     pos.y = std::fmod(pos.y + WINDOW_H * 10, WINDOW_H);
 }
+
+void GasCloud::spawn(Game* g) {
+    game = g;
+    active = true;
+    size = 18 + (rand() % 32);
+    density = 0.65f + (rand() % 35) / 100.0f;
+    phase = rand() * 2 * M_PI / RAND_MAX;
+    pull_strength = 0.14f + (rand() % 70) / 1000.0f;
+    value = 6 + (rand() % 10);
+    
+    int tries = 0;
+    do {
+        position.x = rand() % WINDOW_W;
+        position.y = rand() % WINDOW_H;
+    } while (distance(position, game->ship.position) < 180 && ++tries < 50);
+    
+    float dir = rand() * 2 * M_PI / RAND_MAX;
+    float speed = 0.4f + (rand() % 50) / 100.0f;
+    velocity = Vector2(std::cos(dir) * speed, std::sin(dir) * speed);
+    
+    int hue = 140 + rand() % 100;
+    float sat = 0.9f + (rand() % 10)/100.0f;
+    float val = 1.0f;
+    float cmax = val * sat;
+    float hp = hue / 60.0f;
+    float x = cmax * (1 - std::fabs(std::fmod(hp, 2) - 1));
+    Uint8 r, green, b;
+    if (hp < 1) { r = static_cast<Uint8>(cmax*255); green = static_cast<Uint8>(x*255); b = 0; }
+    else if (hp < 2) { r = static_cast<Uint8>(x*255); green = static_cast<Uint8>(cmax*255); b = 0; }
+    else if (hp < 3) { r = 0; green = static_cast<Uint8>(cmax*255); b = static_cast<Uint8>(x*255); }
+    else if (hp < 4) { r = 0; green = static_cast<Uint8>(x*255); b = static_cast<Uint8>(cmax*255); }
+    else if (hp < 5) { r = static_cast<Uint8>(x*255); green = 0; b = static_cast<Uint8>(cmax*255); }
+    else { r = static_cast<Uint8>(cmax*255); green = 0; b = static_cast<Uint8>(x*255); }
+    color = (r << 16) | (green << 8) | b | 0xFF;
+}
+
 
 void NebulaCreature::spawn(Game* g, const Ship& ship) {
     game = g;
@@ -359,6 +397,18 @@ void Ship::render(SDL_Renderer* renderer) const {
     }
 }
 
+void GasCloud::render(SDL_Renderer* renderer) const {
+    float pulse = 0.8f + 0.2f * std::sin(phase + game->frame * 0.14f);
+    int rad = static_cast<int>(size * pulse * density);
+    
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 50);
+    for (int dy = -static_cast<int>(rad*1.3f); dy <= static_cast<int>(rad*1.3f); dy += 7) {
+        int w = static_cast<int>(std::sqrt(rad*rad*1.7f - dy*dy) * 0.35f);
+        if (w > 0)
+            SDL_RenderDrawLine(renderer, static_cast<int>(position.x - w), static_cast<int>(position.y + dy), static_cast<int>(position.x + w), static_cast<int>(position.y + dy));
+    }
+}
+
 void NebulaCreature::render(SDL_Renderer* renderer) const {
     float pulse = 0.85f + 0.15f * std::sin(game->frame * 0.18f + hunt_phase);
     int sz = static_cast<int>(size * pulse);
@@ -411,7 +461,7 @@ void Game::init() {
 
     for (int i = 0; i < 35; i++) {
         GasCloud c(this);
-        // TODO: Add spawning
+        c.spawn(this);
         clouds.push_back(c);
     }
 
@@ -426,6 +476,7 @@ void Game::render() {
     SDL_SetRenderDrawColor(renderer, 3, 3, 12, 255);
     SDL_RenderClear(renderer);
 
+    for (const auto& c : clouds) if (c.active) c.render(renderer);
     for (const auto& cr : creatures) if (cr.active) cr.render(renderer);   
 
     for (const auto& proj : projectiles) proj.render(renderer);
