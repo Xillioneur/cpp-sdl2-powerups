@@ -609,7 +609,11 @@ void Game::update() {
         ++it;
     }
 
-    // TODO: Spawn more creatures
+    if (frame % 520 == 0 && creatures.size() < static_cast<size_t>(14 + static_cast<int>(danger_level * 12))) {
+        NebulaCreature n(this);
+        n.spawn(this, ship);
+        creatures.push_back(n);
+    }
 
     for (auto it = projectiles.begin(); it != projectiles.end(); ) {
         it->update();
