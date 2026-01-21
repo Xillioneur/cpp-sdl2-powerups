@@ -32,6 +32,8 @@
 #define OVERHEAT_THRUST_PENALTY 0.30f
 #define OVERHEAT_DRAG_MULTIPLIER 0.94f
 
+#define TRACTOR_RANGE 220.0f
+
 #define PROJECTILE_SPEED 8.0f
 #define PROJECTILE_LIFE 120
 #define SHOOT_COOLDOWN 10
@@ -94,6 +96,8 @@ public:
     float fuel = 1000.0f;
     float heat = 0.0f;
     int lives = 3;
+    bool tractor_active = false;
+    float tractor_charge = 0.0f;
     float thrusting = false;
     float overheat_damage_accumulator = 0.0f;
     int shoot_timer = 0;
@@ -275,6 +279,19 @@ void Ship::update(const Uint8* keys) {
     int right = keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT];
     int thrust = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
     int shoot = keys[SDL_SCANCODE_J];
+    static bool prev_tractor = false;
+    bool tractor = keys[SDL_SCANCODE_SPACE];
+
+    if (tractor && !prev_tractor) tractor_active = true;
+    if (tractor) {
+        tractor_charge += 0.25f;
+        // TODO: Combo boost
+    } else {
+        tractor_active = false;
+        tractor_charge = std::fmax(0.0f, tractor_charge - 0.4f);
+    }
+    prev_tractor = tractor;
+
 
     if (left) angle -= SHIP_ROT_SPEED;
     if (right) angle += SHIP_ROT_SPEED;
@@ -312,6 +329,17 @@ void Ship::update(const Uint8* keys) {
 }
 
 void GasCloud::update(const Ship& ship) {
+    // TODO: Combo boost
+    if (ship.tractor_active && distance(position, ship.position) < TRACTOR_RANGE) {
+       Vector2 delta = ship.position - position;
+       float dist = delta.magnitude();
+        if (dist > 0) {
+            float pull = pull_strength * std::fmin(ship.tractor_charge * 0.02f, 1.0f);
+            velocity = velocity + delta.normalize();
+            // TODO: Tractor beam
+        } 
+    }
+
     position = position + velocity;
     phase += 0.08f;
     velocity = velocity * 0.97f;
