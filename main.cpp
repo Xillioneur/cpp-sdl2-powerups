@@ -439,6 +439,16 @@ void Ship::render(SDL_Renderer* renderer) const {
         SDL_RenderDrawLine(renderer, static_cast<int>(position.x - rad), static_cast<int>(position.y), static_cast<int>(position.x + rad), static_cast<int>(position.y));
         SDL_RenderDrawLine(renderer, static_cast<int>(position.x), static_cast<int>(position.y - rad), static_cast<int>(position.x), static_cast<int>(position.y + rad));
     }
+
+    if (tractor_active) {
+        float pulse = std::sin(game->frame * 0.3f) * 0.4f + 0.6f;
+        Uint8 beam_a = static_cast<Uint8>(180 + 75 * pulse);
+        SDL_SetRenderDrawColor(renderer, 120, 240, 255, beam_a);
+        for (int rad = 0; rad < 16; rad += 3) {
+            SDL_RenderDrawLine(renderer, static_cast<int>(position.x - rad*1.4f), static_cast<int>(position.y),
+                                     static_cast<int>(position.x + rad*1.4f), static_cast<int>(position.y));
+        }
+    }
 }
 
 void GasCloud::render(SDL_Renderer* renderer) const {
