@@ -34,9 +34,12 @@
 
 #define TRACTOR_RANGE 220.0f
 
+#define CLOUDS_PER_WAVE_BASE 45
+
 #define PROJECTILE_SPEED 8.0f
 #define PROJECTILE_LIFE 120
 #define SHOOT_COOLDOWN 10
+#define PROJECTILE_DAMAGE 1
 
 class Game;
 
@@ -163,11 +166,16 @@ public:
     std::vector<NebulaCreature> creatures;
     std::vector<Projectile> projectiles;
 
+    int frame = 0;
+    float danger_level = 0.0f;
+    
+    int wave = 1;
+    int clouds_collected_this_wave = 0;
+    int clouds_needed_for_next_wave = CLOUDS_PER_WAVE_BASE;
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
 
-    int frame = 0;
 
     Game() : ship(this) {
         clouds.reserve(MAX_CLOUDS);
@@ -506,6 +514,9 @@ void Game::init() {
     creatures.clear();
     projectiles.clear();
     frame = 0;
+    wave = 1;
+    clouds_collected_this_wave = 0;
+    clouds_needed_for_next_wave = CLOUDS_PER_WAVE_BASE;
 
     for (int i = 0; i < 35; i++) {
         GasCloud c(this);
@@ -536,6 +547,8 @@ void Game::render() {
 void Game::update() {
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
     frame++;
+    danger_level = std::fmin(1.3f, danger_level + 0.00008f * clouds.size());
+
     ship.update(keys);
     wrap(ship.position);
     // TODO: Code thrust_fame()
@@ -551,9 +564,26 @@ void Game::update() {
             // TODO: Points
             // TODO: Harvest effect
             it = clouds.erase(it);
+            clouds_collected_this_wave++;
+
+            if (clouds_collected_this_wave >= clouds_needed_for_next_wave) {
+                wave++;
+                clouds_collected_this_wave = 0;
+                clouds_needed_for_next_wave = CLOUDS_PER_WAVE_BASE + wave * 18;
+
+                // TODO: Spawn more creatures
+
+                danger_level += 0.2f;
+            }
             continue;
         }
         ++it;
+    }
+
+    while (clouds.size() < static_cast<size_t>(40 + static_cast<int>(danger_level * 35))) {
+        GasCloud c(this);
+        c.spawn(this);
+        clouds.push_back(c);
     }
 
     for (auto it = creatures.begin(); it != creatures.end(); ) {
@@ -587,8 +617,23 @@ void Game::update() {
             it = projectiles.erase(it);
             continue;
         }
-        ++it;
-        // TODO: Hit detection with creatures
+        bool hit = false;
+        for (auto& cr : creatures) {
+            if (cr.active && distance(it->position, cr.position) < cr.size) {
+                cr.health -= PROJECTILE_DAMAGE;
+                if (cr.health <= 0) {
+                    cr.active = false;
+                }
+                hit = true;
+                break;
+            }
+        }
+        if (hit) {
+            it = projectiles.erase(it);
+        } else {
+            ++it;
+        }
+
     }
 }
 
