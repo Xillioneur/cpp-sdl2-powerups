@@ -449,6 +449,15 @@ void Ship::render(SDL_Renderer* renderer) const {
                                      static_cast<int>(position.x + rad*1.4f), static_cast<int>(position.y));
         }
     }
+
+    if (is_overheat_warning()) {
+        Uint8 glow_a = static_cast<Uint8>(80 + 120 * std::sin(game->frame * 0.45f));
+        SDL_SetRenderDrawColor(renderer, 255, 140, 40, glow_a);
+        for (int rad = 0; rad < 22; rad += 4) {
+            SDL_RenderDrawLine(renderer, static_cast<int>(position.x - rad*1.6f), static_cast<int>(position.y),
+                                     static_cast<int>(position.x + rad*1.6f), static_cast<int>(position.y));
+        }
+    }
 }
 
 void GasCloud::render(SDL_Renderer* renderer) const {
