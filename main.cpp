@@ -13,6 +13,7 @@
 
 #define MAX_CLOUDS 120
 #define MAX_CREATURES 38
+#define MAX_NEBULAE   12
 #define MAX_PROJECTILES 50
 
 #define SHIP_ROT_SPEED 0.10f
@@ -149,6 +150,17 @@ public:
     void render(SDL_Renderer* renderer) const;
 };
 
+class Nebula : public Entity {
+public:
+    float radius;
+    float density;
+    float swirl;
+    float pulse;
+    Uint32 color;
+
+    Nebula(Game* g) : Entity(g) {}
+};
+
 class Projectile : public Entity {
 public: 
     float life = PROJECTILE_LIFE;
@@ -164,6 +176,7 @@ public:
     Ship ship;
     std::vector<GasCloud> clouds;
     std::vector<NebulaCreature> creatures;
+    std::vector<Nebula> nebulas;
     std::vector<Projectile> projectiles;
 
     int frame = 0;
@@ -180,6 +193,7 @@ public:
     Game() : ship(this) {
         clouds.reserve(MAX_CLOUDS);
         creatures.reserve(MAX_CREATURES);
+        nebulas.reserve(MAX_NEBULAE);
         projectiles.reserve(MAX_PROJECTILES);
     }
 
@@ -531,6 +545,7 @@ void Game::init() {
     ship = Ship(this);
     clouds.clear();
     creatures.clear();
+    nebulas.clear();
     projectiles.clear();
     frame = 0;
     wave = 1;
