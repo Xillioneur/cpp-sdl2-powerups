@@ -160,6 +160,7 @@ public:
 
     Nebula(Game* g) : Entity(g) {}
     void spawn(int idx);
+    void update();
     void render(SDL_Renderer* renderer) const;
 };
 
@@ -439,6 +440,11 @@ void NebulaCreature::update(const Ship& ship) {
     angle = std::atan2(velocity.y, velocity.x);
     position = position + velocity;
     velocity = velocity * 0.975f;
+}
+
+void Nebula::update() {
+    swirl += 0.003f;
+    pulse += 0.012f;
 }
 
 void Ship::render(SDL_Renderer* renderer) const {
@@ -726,6 +732,8 @@ void Game::update() {
         }
 
     }
+
+    for (auto& n : nebulas) n.update();
 }
 
 
