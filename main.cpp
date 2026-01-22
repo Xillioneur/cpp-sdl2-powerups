@@ -159,6 +159,8 @@ public:
     Uint32 color;
 
     Nebula(Game* g) : Entity(g) {}
+    void spawn(int idx);
+    void render(SDL_Renderer* renderer) const;
 };
 
 class Projectile : public Entity {
@@ -180,6 +182,7 @@ public:
     std::vector<Projectile> projectiles;
 
     int frame = 0;
+    float scrollX = 0.0f;
     float danger_level = 0.0f;
     
     int wave = 1;
@@ -280,6 +283,30 @@ void NebulaCreature::spawn(Game* g, const Ship& ship) {
     else color = 0xCC88FFFF | ((130 + rand() % 70) << 24);
 }
 
+void Nebula::spawn(int idx) {
+    active = true;
+    radius = 180 + rand() % 120;
+    density = 0.4 + (rand() % 40)/100.0f;
+    swirl = rand() * 2 * M_PI / RAND_MAX;
+    pulse = 0.0f;
+    position.x = WINDOW_W * (0.2f + (rand() % 1000)/10000.0f * 0.6f);
+    position.y = 100 + rand() % 400;
+    
+    int hue = 220 + rand() % 40;
+    float sat = 0.35f + (rand() % 15)/100.0f;
+    float val = 0.45f + (rand() % 15)/100.0f;
+    float cmax = val * sat;
+    float hp = hue / 60.0f;
+    float x = cmax * (1 - std::fabs(std::fmod(hp, 2) - 1));
+    Uint8 r, green, b;
+    if (hp < 1) { r = static_cast<Uint8>(cmax*255); green = static_cast<Uint8>(x*255); b = 0; }
+    else if (hp < 2) { r = static_cast<Uint8>(x*255); green = static_cast<Uint8>(cmax*255); b = 0; }
+    else if (hp < 3) { r = 0; green = static_cast<Uint8>(cmax*255); b = static_cast<Uint8>(x*255); }
+    else if (hp < 4) { r = 0; green = static_cast<Uint8>(x*255); b = static_cast<Uint8>(cmax*255); }
+    else if (hp < 5) { r = static_cast<Uint8>(x*255); green = 0; b = static_cast<Uint8>(cmax*255); }
+    else { r = static_cast<Uint8>(cmax*255); green = 0; b = static_cast<Uint8>(x*255); }
+    color = (r << 16) | (green << 8) | b | 0x88;
+}
 
 void Projectile::update() {
     position = position + velocity;
@@ -540,6 +567,28 @@ void NebulaCreature::render(SDL_Renderer* renderer) const {
     }
 }
 
+void Nebula::render(SDL_Renderer* renderer) const {
+    float nx = position.x - game->scrollX * 0.08f;
+    if (nx < -400 || nx > WINDOW_W + 400) return;
+
+    float brightness_pulse = 0.9f + 0.1f * std::sin(pulse);
+    Uint8 alpha_base = static_cast<Uint8>(0x88 * brightness_pulse);
+
+    int r = static_cast<int>(radius);
+    SDL_SetRenderDrawColor(renderer, (color>>16)&255, (color>>8)&255, color&255, alpha_base);
+    for (int dy = -r; dy <= r; dy += 5) {
+        float swirl_off = std::sin((dy * 0.025f + swirl * 3) * 1.7f) * density * 35;
+        int hw = static_cast<int>(std::sqrt(r*r - dy*dy) + swirl_off);
+        SDL_RenderDrawLine(renderer, static_cast<int>(nx - hw), static_cast<int>(position.y + dy), static_cast<int>(nx + hw), static_cast<int>(position.y + dy));
+    }
+
+    SDL_SetRenderDrawColor(renderer, 180, 190, 255, static_cast<Uint8>(70 * brightness_pulse));
+    for (int dy = -r/4; dy <= r/4; dy += 10) {
+        int hw = static_cast<int>(std::sqrt((r/4)*(r/4) - dy*dy) * 1.2f);
+        SDL_RenderDrawLine(renderer, static_cast<int>(nx - hw), static_cast<int>(position.y + dy), static_cast<int>(nx + hw), static_cast<int>(position.y + dy));
+    }
+}
+
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     ship = Ship(this);
@@ -557,6 +606,8 @@ void Game::init() {
         c.spawn(this);
         clouds.push_back(c);
     }
+    nebulas.resize(MAX_NEBULAE, Nebula(this));
+    for (int i = 0; i < MAX_NEBULAE; i++) nebulas[i].spawn(i);
 
     for (int i = 0; i < 8; i++) {
         NebulaCreature n(this);
@@ -568,6 +619,8 @@ void Game::init() {
 void Game::render() {
     SDL_SetRenderDrawColor(renderer, 3, 3, 12, 255);
     SDL_RenderClear(renderer);
+
+    for (auto &n : nebulas) if (n.active) n.render(renderer);
 
     for (const auto& c : clouds) if (c.active) c.render(renderer);
     for (const auto& cr : creatures) if (cr.active) cr.render(renderer);   
