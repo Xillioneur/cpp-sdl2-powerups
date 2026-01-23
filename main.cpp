@@ -171,6 +171,7 @@ public:
     Uint32 color;
 
     Particle(Game* g = nullptr) : Entity(g) {}
+    void update();
     void render(SDL_Renderer* renderer) const;
 };
 
@@ -244,7 +245,7 @@ void Game::harvest_effect(const Vector2& pos, int intensity) {
         float ang = static_cast<float>(i) / (30 + intensity * 15) * 2 * M_PI;
         float speed = 3.5f + (rand() % 90) / 30.0f;
         Uint32 c = 0xAAEEFFAA | ((rand() % 120 + 135) << 24);
-        spawn_particle(pos, Vector2(std::cos(ang) * speed, std::sin(ang) * speed * 0.07f), c, 60 + rand() % 50);
+        spawn_particle(pos, Vector2(std::cos(ang) * speed, std::sin(ang) * speed * 0.7f), c, 60 + rand() % 50);
     }
 }
 
@@ -492,6 +493,13 @@ void NebulaCreature::update(const Ship& ship) {
 void Nebula::update() {
     swirl += 0.003f;
     pulse += 0.012f;
+}
+
+void Particle::update() {
+    position = position + velocity;
+    velocity.y += 0.06f * ((color >> 24) / 255.0f);
+    velocity.x *= 0.98f;
+    life -= 1.2f;
 }
 
 void Ship::render(SDL_Renderer* renderer) const {
@@ -767,6 +775,16 @@ void Game::update() {
         NebulaCreature n(this);
         n.spawn(this, ship);
         creatures.push_back(n);
+    }
+
+    for (auto it = particles.begin(); it != particles.end();) {
+        it->update();
+        if (it->life <= 0) {
+            it = particles.erase(it);
+        } else {
+            wrap(it->position);
+            ++it;
+        }
     }
 
     for (auto it = projectiles.begin(); it != projectiles.end(); ) {
