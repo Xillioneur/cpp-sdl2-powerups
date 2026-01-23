@@ -219,6 +219,7 @@ public:
     void render();
     void spawn_particle(const Vector2& pos, const Vector2& vel, Uint32 color, float life);
     void harvest_effect(const Vector2& pos, int intensity);
+    void tractor_beam_effect(const Vector2& from, const Vector2& to);
     void wrap(Vector2& pos);
 };
 
@@ -244,6 +245,17 @@ void Game::harvest_effect(const Vector2& pos, int intensity) {
         float speed = 3.5f + (rand() % 90) / 30.0f;
         Uint32 c = 0xAAEEFFAA | ((rand() % 120 + 135) << 24);
         spawn_particle(pos, Vector2(std::cos(ang) * speed, std::sin(ang) * speed * 0.07f), c, 60 + rand() % 50);
+    }
+}
+
+void Game::tractor_beam_effect(const Vector2& from, const Vector2& to) {
+    for (int i = 0; i < 18; i++) {
+        float t = static_cast<float>(i) / 18.0f + (rand() % 20)/1000.0f;
+        Vector2 p = from + (to - from) * t;
+        float jitter_x = (rand() % 40 - 20) * 0.15f;
+        float jitter_y = (rand() % 40 - 20) * 0.15f;
+        Uint32 c = 0xCCEEFFFF | ((200 + static_cast<int>(std::sin(frame * 0.5f + i) * 55)) << 24);
+        spawn_particle(p + Vector2(jitter_x, jitter_y), Vector2((rand() % 40 - 20) * 0.2f, (rand() % 40 - 20) * 0.2f), c, 40 + rand() % 20);
     }
 }
 
@@ -421,7 +433,7 @@ void GasCloud::update(const Ship& ship) {
         if (dist > 0) {
             float pull = pull_strength * std::fmin(ship.tractor_charge * 0.02f, 1.0f);
             velocity = velocity + delta.normalize();
-            // TODO: Tractor beam
+            game->tractor_beam_effect(ship.position,  position);
         } 
     }
 
