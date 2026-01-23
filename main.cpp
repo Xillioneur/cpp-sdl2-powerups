@@ -12,6 +12,7 @@
 #define WINDOW_H 675
 
 #define MAX_CLOUDS 120
+#define MAX_PARTICLES 700
 #define MAX_CREATURES 38
 #define MAX_NEBULAE   12
 #define MAX_PROJECTILES 50
@@ -164,6 +165,16 @@ public:
     void render(SDL_Renderer* renderer) const;
 };
 
+class Particle : public Entity {
+public:
+    float life;
+    Uint32 color;
+
+    Particle(Game* g = nullptr) : Entity(g) {}
+    void render(SDL_Renderer* renderer) const;
+};
+
+
 class Projectile : public Entity {
 public: 
     float life = PROJECTILE_LIFE;
@@ -180,6 +191,7 @@ public:
     std::vector<GasCloud> clouds;
     std::vector<NebulaCreature> creatures;
     std::vector<Nebula> nebulas;
+    std::vector<Particle> particles;
     std::vector<Projectile> projectiles;
 
     int frame = 0;
@@ -198,18 +210,41 @@ public:
         clouds.reserve(MAX_CLOUDS);
         creatures.reserve(MAX_CREATURES);
         nebulas.reserve(MAX_NEBULAE);
+        particles.reserve(MAX_PARTICLES);
         projectiles.reserve(MAX_PROJECTILES);
     }
 
     void init();
     void update();
     void render();
+    void spawn_particle(const Vector2& pos, const Vector2& vel, Uint32 color, float life);
+    void harvest_effect(const Vector2& pos, int intensity);
     void wrap(Vector2& pos);
 };
 
 void Game::wrap(Vector2& pos) {
     pos.x = std::fmod(pos.x + WINDOW_W * 10, WINDOW_W);
     pos.y = std::fmod(pos.y + WINDOW_H * 10, WINDOW_H);
+}
+
+void Game::spawn_particle(const Vector2& pos, const Vector2& vel, Uint32 color, float life) {
+    if (particles.size() >= MAX_PARTICLES) return;
+    Particle p(this);
+    p.position = pos;
+    p.velocity = vel;
+    p.life = life;
+    p.color = color;
+    p.active = true;
+    particles.push_back(p);
+}
+
+void Game::harvest_effect(const Vector2& pos, int intensity) {
+    for (int i = 0; i < 30 + intensity * 15; i++) {
+        float ang = static_cast<float>(i) / (30 + intensity * 15) * 2 * M_PI;
+        float speed = 3.5f + (rand() % 90) / 30.0f;
+        Uint32 c = 0xAAEEFFAA | ((rand() % 120 + 135) << 24);
+        spawn_particle(pos, Vector2(std::cos(ang) * speed, std::sin(ang) * speed * 0.07f), c, 60 + rand() % 50);
+    }
 }
 
 void GasCloud::spawn(Game* g) {
@@ -595,12 +630,25 @@ void Nebula::render(SDL_Renderer* renderer) const {
     }
 }
 
+void Particle::render(SDL_Renderer* renderer) const {
+    int alpha = static_cast<int>(255 * (life / 60.0f));
+    if (alpha < 25) return;
+    SDL_SetRenderDrawColor(renderer, (color>>16)&255, (color>>8)&255, color&255, alpha);
+    int px = static_cast<int>(position.x), py = static_cast<int>(position.y);
+    SDL_RenderDrawPoint(renderer, px, py);
+    if (alpha > 100) {
+        SDL_RenderDrawPoint(renderer, px+1, py);
+        SDL_RenderDrawPoint(renderer, px, py+1);
+    }
+}
+
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     ship = Ship(this);
     clouds.clear();
     creatures.clear();
     nebulas.clear();
+    particles.clear();
     projectiles.clear();
     frame = 0;
     wave = 1;
@@ -631,6 +679,7 @@ void Game::render() {
     for (const auto& c : clouds) if (c.active) c.render(renderer);
     for (const auto& cr : creatures) if (cr.active) cr.render(renderer);   
 
+    for (const auto& part : particles) part.render(renderer);
     for (const auto& proj : projectiles) proj.render(renderer);
     ship.render(renderer);
 
@@ -655,7 +704,7 @@ void Game::update() {
         wrap(it->position);
         if (distance(it->position, ship.position) < HARVEST_RANGE) {
             // TODO: Points
-            // TODO: Harvest effect
+            harvest_effect(it->position, it->value);
             it = clouds.erase(it);
             clouds_collected_this_wave++;
 
