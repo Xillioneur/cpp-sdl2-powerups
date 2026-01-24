@@ -113,6 +113,9 @@ public:
     float damage_this_frame = 0.0f;
     int shoot_timer = 0;
 
+    int active_powerup = -1;
+    int powerup_timer = 0;
+
     Ship(Game* g) : Entity (g) {
         position = Vector2(WINDOW_W / 2.0f, WINDOW_H / 2.0f);
         angle = -M_PI / 2;
@@ -199,6 +202,7 @@ public:
     Uint32 color;
     PowerUp(Game* g) : Entity(g) {}
     void spawn(Game* g);
+    void update(Ship& ship);
     void render(SDL_Renderer* renderer) const;
 };
 
@@ -588,6 +592,17 @@ void Particle::update() {
     life -= 1.2f;
 }
 
+void PowerUp::update(Ship& ship) {
+    position = position + velocity;
+
+    if (distance(position, ship.position) < size + 20.0f) {
+        ship.active_powerup = type;
+        ship.powerup_timer = POWERUP_DURATION;
+        active = false;
+        game->harvest_effect(position, 10);
+    }
+}
+
 void Ship::render(SDL_Renderer* renderer) const {
     float heat_ratio = heat / OVERHEAT_MAX;
     float heat_glow = std::fmin(heat_ratio, 1.3f);
@@ -918,6 +933,16 @@ void Game::update() {
         PowerUp pu(this);
         pu.spawn(this);
         powerups.push_back(pu);
+    }
+
+    for (auto it = powerups.begin(); it != powerups.end(); ) {
+        it->update(ship);
+        wrap(it->position);
+        if (!it->active) {
+            it = powerups.erase(it);
+        } else {
+            ++it;
+        }
     }
 
     for (auto& n : nebulas) n.update();
