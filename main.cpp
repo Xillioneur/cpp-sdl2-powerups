@@ -16,6 +16,7 @@
 #define MAX_CREATURES 38
 #define MAX_NEBULAE   12
 #define MAX_PROJECTILES 50
+#define MAX_POWERUPS 10
 
 #define SHIP_ROT_SPEED 0.10f
 #define SHIP_THRUST 0.12f
@@ -37,6 +38,10 @@
 #define TRACTOR_RANGE 220.0f
 
 #define CLOUDS_PER_WAVE_BASE 45
+
+#define POWERUP_SPAWN_CHANCE 0.05f
+#define POWERUP_DURATION 900
+#define POWERUP_TYPES 3
 
 #define PROJECTILE_SPEED 8.0f
 #define PROJECTILE_LIFE 120
@@ -187,6 +192,16 @@ public:
     void render(SDL_Renderer* renderer) const;
 };
 
+class PowerUp : public Entity {
+public:
+    int type;
+    float size = 20.0f;
+    Uint32 color;
+    PowerUp(Game* g) : Entity(g) {}
+    void spawn(Game* g);
+    void render(SDL_Renderer* renderer) const;
+};
+
 class Game {
 public:
     Ship ship;
@@ -195,6 +210,7 @@ public:
     std::vector<Nebula> nebulas;
     std::vector<Particle> particles;
     std::vector<Projectile> projectiles;
+    std::vector<PowerUp> powerups;
 
     int frame = 0;
     float scrollX = 0.0f;
@@ -214,6 +230,7 @@ public:
         nebulas.reserve(MAX_NEBULAE);
         particles.reserve(MAX_PARTICLES);
         projectiles.reserve(MAX_PROJECTILES);
+        powerups.reserve(MAX_POWERUPS);
     }
 
     void init();
@@ -373,6 +390,19 @@ void NebulaCreature::spawn(Game* g, const Ship& ship) {
     if (type == 0) color = 0x88BBFFFF | ((170 + rand() % 50) << 24);
     else if (type == 1) color = 0xFF8888FF | ((140 + rand() % 60) << 24);
     else color = 0xCC88FFFF | ((130 + rand() % 70) << 24);
+}
+
+void PowerUp::spawn(Game* g) {
+    game = g;
+    active = true;
+    type = rand() % POWERUP_TYPES;
+    position.x = rand() % WINDOW_W;
+    position.y = rand() % WINDOW_H;
+    velocity = Vector2(0.5f - static_cast<float>(rand()) / RAND_MAX, 0.5f - static_cast<float>(rand()) / RAND_MAX);
+
+    if (type == 0) color = 0x00FF00FF; // Green for fuel
+    else if (type == 1) color = 0x0000FFFF; // Blue for heat
+    else color = 0xFFFF00FF; // Yellow for score
 }
 
 void Nebula::spawn(int idx) {
@@ -718,6 +748,17 @@ void Particle::render(SDL_Renderer* renderer) const {
     }
 }
 
+void PowerUp::render(SDL_Renderer* renderer) const {
+    float pulse = 1.0f + 0.2f * std::sin(game->frame * 0.2f);
+    int rad = static_cast<int>(size * pulse);
+
+    SDL_SetRenderDrawColor(renderer, (color>>16)&255, (color>>8)&255, color&255, 255);
+    for (int dy = -rad; dy <= rad; dy += 2) {
+        int w = static_cast<int>(std::sqrt(rad*rad - dy*dy));
+        SDL_RenderDrawLine(renderer, static_cast<int>(position.x - w), static_cast<int>(position.y + dy), static_cast<int>(position.x + w), static_cast<int>(position.y + dy));
+    }
+}
+
 void Game::init() {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     ship = Ship(this);
@@ -726,6 +767,7 @@ void Game::init() {
     nebulas.clear();
     particles.clear();
     projectiles.clear();
+    powerups.clear();
     frame = 0;
     wave = 1;
     clouds_collected_this_wave = 0;
@@ -754,6 +796,7 @@ void Game::render() {
 
     for (const auto& c : clouds) if (c.active) c.render(renderer);
     for (const auto& cr : creatures) if (cr.active) cr.render(renderer);   
+    for (const auto& pu : powerups) if (pu.active) pu.render(renderer);
 
     for (const auto& part : particles) part.render(renderer);
     for (const auto& proj : projectiles) proj.render(renderer);
@@ -869,6 +912,12 @@ void Game::update() {
             ++it;
         }
 
+    }
+
+    if (wave >= 2 && static_cast<float>(rand() / RAND_MAX < POWERUP_SPAWN_CHANCE && powerups.size() < MAX_POWERUPS)) {
+        PowerUp pu(this);
+        pu.spawn(this);
+        powerups.push_back(pu);
     }
 
     for (auto& n : nebulas) n.update();
