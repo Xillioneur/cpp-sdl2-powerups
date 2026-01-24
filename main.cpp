@@ -105,6 +105,7 @@ public:
     float tractor_charge = 0.0f;
     float thrusting = false;
     float overheat_damage_accumulator = 0.0f;
+    float damage_this_frame = 0.0f;
     int shoot_timer = 0;
 
     Ship(Game* g) : Entity (g) {
@@ -221,6 +222,8 @@ public:
     void spawn_particle(const Vector2& pos, const Vector2& vel, Uint32 color, float life);
     void harvest_effect(const Vector2& pos, int intensity);
     void tractor_beam_effect(const Vector2& from, const Vector2& to);
+    void danger_trail(const Vector2& pos);
+    void critical_overheat_effect();
     void wrap(Vector2& pos);
 };
 
@@ -257,6 +260,34 @@ void Game::tractor_beam_effect(const Vector2& from, const Vector2& to) {
         float jitter_y = (rand() % 40 - 20) * 0.15f;
         Uint32 c = 0xCCEEFFFF | ((200 + static_cast<int>(std::sin(frame * 0.5f + i) * 55)) << 24);
         spawn_particle(p + Vector2(jitter_x, jitter_y), Vector2((rand() % 40 - 20) * 0.2f, (rand() % 40 - 20) * 0.2f), c, 40 + rand() % 20);
+    }
+}
+
+void Game::danger_trail(const Vector2& pos) {
+    for (int i = 0; i < 8; i++) {
+        float ang = (rand() % 360) * M_PI / 180.0f;
+        float speed = 5.0f + (rand() % 50) / 10.0f;
+        Uint32 c = 0xFF4444FF | ((rand() % 100 + 140) << 24);
+        spawn_particle(pos, Vector2(std::cos(ang) * speed, std::sin(ang) * speed), c, 30 + rand() % 25);
+    }
+}
+
+void Game::critical_overheat_effect() {
+    float rear = ship.angle + M_PI;
+    Vector2 rear_pos = ship.position + Vector2(std::cos(rear) * 20, std::sin(rear) * 20);
+    for (int i = 0; i < 8; i++) {
+        float ang = rear + (rand() % 100 - 50) * 0.018f;
+        float spd = 3.5f + (rand() % 60)/10.0f;
+        Uint32 c = 0xAA444444 | ((90 + rand() % 80) << 24);
+        spawn_particle(rear_pos, Vector2(std::cos(ang)*spd + ship.velocity.x*0.3f, std::sin(ang)*spd + ship.velocity.y*0.3f), c, 60 + rand() % 50);
+    }
+    if (frame % 4 == 0) {
+        for (int i = 0; i < 5; i++) {
+            float ang = static_cast<float>(rand()) * 2 * M_PI / RAND_MAX;
+            float spd = 4.5f + (rand() % 60)/10.0f;
+            Uint32 c = 0xFFFF8800 | ((180 + rand() % 75) << 24);
+            spawn_particle(ship.position, Vector2(std::cos(ang)*spd, std::sin(ang)*spd), c, 30 + rand() % 25);
+        }
     }
 }
 
@@ -373,6 +404,7 @@ void Projectile::render(SDL_Renderer* renderer) const {
 
 void Ship::update(const Uint8* keys) {
     thrusting = false;
+    damage_this_frame = 0.0f;
     int left = keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT];
     int right = keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT];
     int thrust = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
@@ -420,8 +452,20 @@ void Ship::update(const Uint8* keys) {
 
     if (is_critical_overheat()) {
         velocity = velocity * OVERHEAT_DRAG_MULTIPLIER;
+        overheat_damage_accumulator += OVERHEAT_DAMAGE_PER_SEC / 60.0f;
+        if (overheat_damage_accumulator >= 1.0f) {
+            int damage = static_cast<int>(overheat_damage_accumulator);
+            lives -= damage;
+            overheat_damage_accumulator -= damage;
+            damage_this_frame = static_cast<float>(damage);
+            if (lives <= 0) {
+                std::cout << "Game Over! (Overheated to death)" << std::endl;
+                game->init();
+            }
+        }
     } else {
         velocity = velocity * 0.985f;
+        overheat_damage_accumulator = std::fmax(0.0f, overheat_damage_accumulator - 0.4f);
     }
     fuel = std::fmin(1000.0f, fuel + 0.35f);
 }
@@ -714,6 +758,8 @@ void Game::update() {
     ship.update(keys);
     wrap(ship.position);
     // TODO: Code thrust_fame()
+    if (ship.is_critical_overheat()) critical_overheat_effect();
+    if (ship.damage_this_frame > 0) danger_trail(ship.position);
 
     for (auto it = clouds.begin(); it != clouds.end();) { 
         if (!it->active) {
