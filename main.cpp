@@ -224,6 +224,7 @@ public:
     void tractor_beam_effect(const Vector2& from, const Vector2& to);
     void danger_trail(const Vector2& pos);
     void critical_overheat_effect();
+    void trail_emit();
     void wrap(Vector2& pos);
 };
 
@@ -288,6 +289,17 @@ void Game::critical_overheat_effect() {
             Uint32 c = 0xFFFF8800 | ((180 + rand() % 75) << 24);
             spawn_particle(ship.position, Vector2(std::cos(ang)*spd, std::sin(ang)*spd), c, 30 + rand() % 25);
         }
+    }
+}
+
+void Game::trail_emit() {
+    float speed = ship.velocity.magnitude();
+    if (speed < 3.5f || frame % 3 != 0) return;
+    float rear = std::atan2(ship.velocity.y, ship.velocity.x) + M_PI;
+    Vector2 px = ship.position + Vector2(std::cos(rear) * 20, std::sin(rear) * 20);
+    for (int i = 0; i < 5; i++) {
+        float ang = rear + (rand() % 100 - 50) * 0.012f;
+        spawn_particle(px, Vector2(std::cos(ang) * (2.0f + speed * 0.3f), std::sin(ang) * (2.0f + speed * 0.3f)), 0x66DDFFFF, 40 + rand() % 35);
     }
 }
 
@@ -756,10 +768,11 @@ void Game::update() {
     danger_level = std::fmin(1.3f, danger_level + 0.00008f * clouds.size());
 
     ship.update(keys);
-    wrap(ship.position);
     // TODO: Code thrust_fame()
     if (ship.is_critical_overheat()) critical_overheat_effect();
     if (ship.damage_this_frame > 0) danger_trail(ship.position);
+    wrap(ship.position);
+    trail_emit();
 
     for (auto it = clouds.begin(); it != clouds.end();) { 
         if (!it->active) {
