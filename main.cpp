@@ -531,7 +531,22 @@ void Ship::update(const Uint8* keys) {
         velocity = velocity * 0.985f;
         overheat_damage_accumulator = std::fmax(0.0f, overheat_damage_accumulator - 0.4f);
     }
+    
     fuel = std::fmin(1000.0f, fuel + 0.35f);
+
+    if (active_powerup >= 0) {
+        powerup_timer--;
+        if (powerup_timer <= 0) {
+            active_powerup = -1;
+            score_multiplier = 1.0f;
+        } else if (active_powerup == 0) {
+            fuel = std::fmin(1000.0f, fuel + 1.0f);
+        } else if (active_powerup == 1) {
+            heat = std::fmax(0.0f, heat - 1.5f);
+        } else if (active_powerup == 2) {
+            score_multiplier = 1.5f;
+        }
+    }
 }
 
 void GasCloud::update(const Ship& ship) {
