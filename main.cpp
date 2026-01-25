@@ -15,6 +15,7 @@
 #define MAX_PARTICLES 700
 #define MAX_CREATURES 38
 #define MAX_NEBULAE   12
+#define NUM_STARS 600
 #define MAX_PROJECTILES 50
 #define MAX_POWERUPS 10
 
@@ -202,6 +203,12 @@ public:
     void render(SDL_Renderer* renderer) const;
 };
 
+class Star {
+public:
+    float base_x, base_y;
+    int brightness, phase, size;
+};
+
 class PowerUp : public Entity {
 public:
     int type;
@@ -221,6 +228,7 @@ public:
     std::vector<Nebula> nebulas;
     std::vector<Particle> particles;
     std::vector<Projectile> projectiles;
+    std::vector<Star> stars;
     std::vector<PowerUp> powerups;
 
     int frame = 0;
@@ -242,6 +250,7 @@ public:
         nebulas.reserve(MAX_NEBULAE);
         particles.reserve(MAX_PARTICLES);
         projectiles.reserve(MAX_PROJECTILES);
+        stars.resize(NUM_STARS);
         powerups.reserve(MAX_POWERUPS);
     }
 
@@ -831,6 +840,14 @@ void Game::init() {
     nebulas.resize(MAX_NEBULAE, Nebula(this));
     for (int i = 0; i < MAX_NEBULAE; i++) nebulas[i].spawn(i);
 
+    for (int i = 0; i < NUM_STARS; i++) {
+        stars[i].base_x = (rand() % 90000) - 45000;
+        stars[i].base_y = rand() % WINDOW_H;
+        stars[i].brightness = 110 + rand() % 145;
+        stars[i].phase = rand() % 256;
+        stars[i].size = 1 + (rand() % 3);
+    }
+
     for (int i = 0; i < 8; i++) {
         NebulaCreature n(this);
         n.spawn(this, ship);
@@ -841,6 +858,20 @@ void Game::init() {
 void Game::render() {
     SDL_SetRenderDrawColor(renderer, 3, 3, 12, 255);
     SDL_RenderClear(renderer);
+
+    for (const auto& s : stars) {
+        float px = s.base_x - scrollX * 0.18f;
+        px = std::fmod(px + 120000, 240000) - 120000;
+        if (px < -60 || px > WINDOW_W + 60) continue;
+        float twinkle = 0.65f + 0.35f * std::sin(frame * 0.09f + s.phase);
+        int br = static_cast<int>(s.brightness * twinkle);
+        SDL_SetRenderDrawColor(renderer, br, br, br + 40, 255);
+        int sx = static_cast<int>(px), sy = static_cast<int>(s.base_y);
+        for (int sz = -s.size; sz <= s.size; sz++) {
+            SDL_RenderDrawPoint(renderer, sx + sz, sy);
+            SDL_RenderDrawPoint(renderer, sx, sy + sz);
+        }
+    }
 
     for (auto &n : nebulas) if (n.active) n.render(renderer);
 
