@@ -531,7 +531,7 @@ void Ship::update(const Uint8* keys) {
         velocity = velocity * 0.985f;
         overheat_damage_accumulator = std::fmax(0.0f, overheat_damage_accumulator - 0.4f);
     }
-    
+
     fuel = std::fmin(1000.0f, fuel + 0.35f);
 
     if (active_powerup >= 0) {
@@ -550,13 +550,15 @@ void Ship::update(const Uint8* keys) {
 }
 
 void GasCloud::update(const Ship& ship) {
-    // TODO: Combo boost
-    if (ship.tractor_active && distance(position, ship.position) < TRACTOR_RANGE) {
+    float current_range = ship.combo_boost_active ? TRACTOR_RANGE * 1.6f : TRACTOR_RANGE;
+    float current_pull = ship.combo_boost_active ? 1.5f : 1.0f;
+
+    if (ship.tractor_active && distance(position, ship.position) < current_range) {
        Vector2 delta = ship.position - position;
        float dist = delta.magnitude();
         if (dist > 0) {
-            float pull = pull_strength * std::fmin(ship.tractor_charge * 0.02f, 1.0f);
-            velocity = velocity + delta.normalize();
+            float pull = pull_strength * std::fmin(ship.tractor_charge * 0.02f, current_pull);
+            velocity = velocity + delta.normalize() * pull;
             game->tractor_beam_effect(ship.position,  position);
         } 
     }
