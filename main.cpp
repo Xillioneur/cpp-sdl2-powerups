@@ -36,6 +36,8 @@
 #define OVERHEAT_DRAG_MULTIPLIER 0.94f
 
 #define TRACTOR_RANGE 220.0f
+#define COMBO_BOOST_THRESHOLD 8
+#define COMBO_BOOST_DURATION 600
 
 #define CLOUDS_PER_WAVE_BASE 45
 
@@ -105,16 +107,21 @@ public:
     float angle = 0.0f;
     float fuel = 1000.0f;
     float heat = 0.0f;
+    int score = 0;
+    int combo = 0;
     int lives = 3;
     bool tractor_active = false;
     float tractor_charge = 0.0f;
-    float thrusting = false;
+    bool combo_boost_active = false;
+    int combo_boost_timer = 0;
     float overheat_damage_accumulator = 0.0f;
+    float thrusting = false;
     float damage_this_frame = 0.0f;
     int shoot_timer = 0;
 
     int active_powerup = -1;
     int powerup_timer = 0;
+    float score_multiplier = 1.0f;
 
     Ship(Game* g) : Entity (g) {
         position = Vector2(WINDOW_W / 2.0f, WINDOW_H / 2.0f);
@@ -219,6 +226,7 @@ public:
     int frame = 0;
     float scrollX = 0.0f;
     float danger_level = 0.0f;
+    int combo_timer = 0;
     
     int wave = 1;
     int clouds_collected_this_wave = 0;
@@ -461,13 +469,23 @@ void Ship::update(const Uint8* keys) {
     if (tractor && !prev_tractor) tractor_active = true;
     if (tractor) {
         tractor_charge += 0.25f;
-        // TODO: Combo boost
+        if (!combo_boost_active) fuel -= 0.12f;
     } else {
         tractor_active = false;
         tractor_charge = std::fmax(0.0f, tractor_charge - 0.4f);
     }
     prev_tractor = tractor;
 
+    if (combo >= COMBO_BOOST_THRESHOLD && !combo_boost_active) {
+        combo_boost_active = true;
+        combo_boost_timer = COMBO_BOOST_DURATION;
+    }
+    if (combo_boost_active) {
+        combo_boost_timer--;
+        if (combo_boost_timer <= 0) {
+            combo_boost_active = false;
+        }
+    }
 
     if (left) angle -= SHIP_ROT_SPEED;
     if (right) angle += SHIP_ROT_SPEED;
@@ -505,7 +523,7 @@ void Ship::update(const Uint8* keys) {
             overheat_damage_accumulator -= damage;
             damage_this_frame = static_cast<float>(damage);
             if (lives <= 0) {
-                std::cout << "Game Over! (Overheated to death)" << std::endl;
+                std::cout << "Game Over! (Overheated to death) Final Score: " << score << std::endl;
                 game->init();
             }
         }
@@ -817,6 +835,8 @@ void Game::render() {
     for (const auto& proj : projectiles) proj.render(renderer);
     ship.render(renderer);
 
+    // TODO: Score display
+
     SDL_RenderPresent(renderer);
 }
 
@@ -840,9 +860,12 @@ void Game::update() {
         it->update(ship);
         wrap(it->position);
         if (distance(it->position, ship.position) < HARVEST_RANGE) {
-            // TODO: Points
+            int points = static_cast<int>(it->value * (1 + ship.combo * 0.2f) * ship.score_multiplier);
+            ship.score += points;
             harvest_effect(it->position, it->value);
             it = clouds.erase(it);
+            ship.combo++;
+            combo_timer = 300;
             clouds_collected_this_wave++;
 
             if (clouds_collected_this_wave >= clouds_needed_for_next_wave) {
@@ -878,9 +901,9 @@ void Game::update() {
             ship.heat = OVERHEAT_MAX * 0.92f;
             // TODO: Danger trail
             it = creatures.erase(it);
-            // TODO: Combo
+            ship.combo = 0;
             if (ship.lives <= 0) {
-                std::cout << "Game Over!" << std::endl; // TOOD: Score
+                std::cout << "Game Over! Final Score: " << ship.score << std::endl; 
                 init();
             }
             continue;
@@ -915,6 +938,8 @@ void Game::update() {
             if (cr.active && distance(it->position, cr.position) < cr.size) {
                 cr.health -= PROJECTILE_DAMAGE;
                 if (cr.health <= 0) {
+                    ship.score += 50 * ship.score_multiplier;
+                    // TODO: Creature destroy effect
                     cr.active = false;
                 }
                 hit = true;
@@ -928,6 +953,9 @@ void Game::update() {
         }
 
     }
+
+    if (combo_timer > 0) combo_timer--;
+    else ship.combo = 0;
 
     if (wave >= 2 && static_cast<float>(rand() / RAND_MAX < POWERUP_SPAWN_CHANCE && powerups.size() < MAX_POWERUPS)) {
         PowerUp pu(this);
