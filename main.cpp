@@ -209,6 +209,13 @@ public:
     int brightness, phase, size;
 };
 
+class Debris {
+public:
+    float base_x, base_y;
+    float vx;
+    int size;
+};
+
 class PowerUp : public Entity {
 public:
     int type;
