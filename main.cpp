@@ -16,6 +16,7 @@
 #define MAX_CREATURES 38
 #define MAX_NEBULAE   12
 #define NUM_STARS 600
+#define NUM_DEBRIS 300
 #define MAX_PROJECTILES 50
 #define MAX_POWERUPS 10
 
@@ -236,6 +237,7 @@ public:
     std::vector<Particle> particles;
     std::vector<Projectile> projectiles;
     std::vector<Star> stars;
+    std::vector<Debris> debris;
     std::vector<PowerUp> powerups;
 
     int frame = 0;
@@ -258,6 +260,7 @@ public:
         particles.reserve(MAX_PARTICLES);
         projectiles.reserve(MAX_PROJECTILES);
         stars.resize(NUM_STARS);
+        debris.resize(NUM_DEBRIS);
         powerups.reserve(MAX_POWERUPS);
     }
 
@@ -854,6 +857,12 @@ void Game::init() {
         stars[i].phase = rand() % 256;
         stars[i].size = 1 + (rand() % 3);
     }
+    for (int i = 0; i < NUM_DEBRIS; i++) {
+        debris[i].base_x = (rand() % 120000) - 60000;
+        debris[i].base_y = rand() % WINDOW_H;
+        debris[i].vx = 0.25f + (rand() % 80)/100.0f;
+        debris[i].size = 1 + rand() % 3;
+    }
 
     for (int i = 0; i < 8; i++) {
         NebulaCreature n(this);
@@ -880,6 +889,17 @@ void Game::render() {
         }
     }
 
+    for (size_t i = 0; i < debris.size(); i++) {
+        const auto& d = debris[i];
+        float px = d.base_x - scrollX * 0.45f;
+        px = std::fmod(px + 18000, 360000) - 180000;
+        if (px < -40 || px > WINDOW_W + 40) continue;
+        int g = 100 + static_cast<int>(d.vx * 180 + std::sin(frame * 0.06f + i * 0.1f) * 35);
+        SDL_SetRenderDrawColor(renderer, g, g + 20, 180, 200);
+        for(int sz = 0; sz < d.size * 2 + 1; sz++) {
+            SDL_RenderDrawPoint(renderer, static_cast<int>(px) + sz, static_cast<int>(d.base_y));
+        }
+    }
     for (auto &n : nebulas) if (n.active) n.render(renderer);
 
     for (const auto& c : clouds) if (c.active) c.render(renderer);
